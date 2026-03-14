@@ -7,6 +7,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateImage, generateVoxelScene, IMAGE_SYSTEM_PROMPT, VOXEL_PROMPT } from './services/gemini';
 import { extractHtmlFromText, hideBodyText, zoomCamera } from './utils/html';
+import example1Html from './examples/example1.html?raw';
+import example2Html from './examples/example2.html?raw';
+import example3Html from './examples/example3.html?raw';
 
 type AppStatus = 'idle' | 'generating_image' | 'generating_voxels' | 'error';
 
@@ -37,9 +40,9 @@ interface Example {
 }
 
 const EXAMPLES: Example[] = [
-  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example1.png', html: '/examples/example1.html' },
-  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example2.png', html: '/examples/example2.html' },
-  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example3.png', html: '/examples/example3.html' },
+  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example1.png', html: example1Html },
+  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example2.png', html: example2Html },
+  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example3.png', html: example3Html },
 ];
 
 const App: React.FC = () => {
@@ -238,22 +241,8 @@ const App: React.FC = () => {
         reader.readAsDataURL(imgBlob);
       });
 
-      // 2. Fetch HTML
-      let htmlText = '';
-      try {
-        const htmlResponse = await fetch(example.html);
-        if (htmlResponse.ok) {
-            const rawText = await htmlResponse.text();
-            // Extract, clean, and zoom
-            htmlText = zoomCamera(hideBodyText(extractHtmlFromText(rawText)));
-        } else {
-            console.warn("HTML file not found, using placeholder");
-            htmlText = `<html><body><p>${example.html} not found.</p></body></html>`;
-        }
-      } catch (e) {
-          console.warn("Failed to fetch HTML", e);
-          htmlText = "<html><body>Error loading example scene.</body></html>";
-      }
+      // 2. Get HTML (already imported as raw string)
+      const htmlText = zoomCamera(hideBodyText(extractHtmlFromText(example.html)));
 
       setImageData(base64Img);
       setVoxelCode(htmlText);
