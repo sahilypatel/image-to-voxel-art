@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Underwater Coral Reef</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #051530; }
+        canvas { display: block; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x062040);
+        scene.fog = new THREE.FogExp2(0x062040, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+        camera.position.set(40, 25, 40);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.3;
+        controls.target.set(0, 5, 0);
+
+        const ambient = new THREE.AmbientLight(0x2244aa, 0.5);
+        scene.add(ambient);
+
+        const sunbeam = new THREE.DirectionalLight(0x88ccff, 0.8);
+        sunbeam.position.set(10, 60, 10);
+        sunbeam.castShadow = true;
+        scene.add(sunbeam);
+
+        const causticLight = new THREE.PointLight(0x44aaff, 1, 40);
+        causticLight.position.set(0, 20, 0);
+        scene.add(causticLight);
+
+        const PALETTE = {
+            SAND_LIGHT: 0xd4b896,
+            SAND_DARK: 0xb89e78,
+            CORAL_RED: 0xff3344,
+            CORAL_ORANGE: 0xff6622,
+            CORAL_PINK: 0xff77aa,
+            CORAL_PURPLE: 0x9944cc,
+            CORAL_YELLOW: 0xffcc22,
+            SEAWEED_1: 0x228833,
+            SEAWEED_2: 0x33aa44,
+            SEAWEED_3: 0x1a6630,
+            ROCK: 0x556666,
+            ROCK_DARK: 0x3a4a4a,
+            ANEMONE: 0xff88cc,
+            ANEMONE_TIP: 0xffccee,
+            SHELL: 0xeeddcc,
+            TREASURE: 0xffaa00,
+        };
+
+        const voxels = [];
+        function addVoxel(x, y, z, color) {
+            voxels.push({ x, y, z, color });
+        }
+
+        // Sandy ocean floor with gentle hills
+        for (let x = -22; x <= 22; x++) {
+            for (let z = -22; z <= 22; z++) {
+                const height = Math.floor(
+                    Math.sin(x * 0.15) * Math.cos(z * 0.12) * 2 +
+                    Math.sin(x * 0.08 + z * 0.08) * 1.5
+                );
+                for (let y = height; y >= height - 2; y--) {
+                    const col = y === height
+                        ? (Math.random() > 0.7 ? PALETTE.SAND_LIGHT : PALETTE.SAND_DARK)
+                        : PALETTE.ROCK_DARK;
+                    addVoxel(x, y, z, col);
+                }
+            }
+        }
+
+        // Branching coral structures
+        function buildBranchCoral(bx, bz, color, maxH) {
+            const baseY = Math.floor(Math.sin(bx * 0.15) * Math.cos(bz * 0.12) * 2 + Math.sin(bx * 0.08 + bz * 0.08) * 1.5);
+            for (let y = 0; y < maxH; y++) {
+                addVoxel(bx, baseY + y + 1, bz, color);
+                if (y > 2 && y % 2 === 0) {
+                    const branches = 2 + Math.floor(Math.random() * 3);
+                    for (let b = 0; b < branches; b++) {
+                        const dx = Math.round((Math.random() - 0.5) * 3);
+                        const dz = Math.round((Math.random() - 0.5) * 3);
+                        const bLen = 2 + Math.floor(Math.random() * 3);
+                        for (let bl = 1; bl <= bLen; bl++) {
+                            addVoxel(bx + dx * bl, baseY + y + 1 + bl, bz + dz * bl, color);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Brain/dome coral
+        function buildDomeCoral(bx, bz, color, r) {
+            const baseY = Math.floor(Math.sin(bx * 0.15) * Math.cos(bz * 0.12) * 2 + Math.sin(bx * 0.08 + bz * 0.08) * 1.5);
+            for (let x = -r; x <= r; x++) {
+                for (let y = 0; y <= r; y++) {
+                    for (let z = -r; z <= r; z++) {
+                        if (x * x + y * y + z * z <= r * r + 0.5) {
+                            if (Math.random() > 0.15) {
+                                addVoxel(bx + x, baseY + y + 1, bz + z, color);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Seaweed
+        function buildSeaweed(bx, bz) {
+            const baseY = Math.floor(Math.sin(bx * 0.15) * Math.cos(bz * 0.12) * 2 + Math.sin(bx * 0.08 + bz * 0.08) * 1.5);
+            const h = 4 + Math.floor(Math.random() * 6);
+            const colors = [PALETTE.SEAWEED_1, PALETTE.SEAWEED_2, PALETTE.SEAWEED_3];
+            const col = colors[Math.floor(Math.random() * 3)];
+            for (let y = 0; y < h; y++) {
+                const sway = Math.round(Math.sin(y * 0.5) * 0.8);
+                addVoxel(bx + sway, baseY + y + 1, bz, col);
+            }
+        }
+
+        // Sea anemone
+        function buildAnemone(bx, bz) {
+            const baseY = Math.floor(Math.sin(bx * 0.15) * Math.cos(bz * 0.12) * 2 + Math.sin(bx * 0.08 + bz * 0.08) * 1.5);
+            for (let y = 0; y < 3; y++) addVoxel(bx, baseY + y + 1, bz, PALETTE.ANEMONE);
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    if (dx === 0 && dz === 0) continue;
+                    addVoxel(bx + dx, baseY + 3, bz + dz, PALETTE.ANEMONE);
+                    addVoxel(bx + dx, baseY + 4, bz + dz, PALETTE.ANEMONE_TIP);
+                }
+            }
+        }
+
+        // Rock formations
+        function buildRock(bx, bz, size) {
+            const baseY = Math.floor(Math.sin(bx * 0.15) * Math.cos(bz * 0.12) * 2 + Math.sin(bx * 0.08 + bz * 0.08) * 1.5);
+            for (let x = -size; x <= size; x++) {
+                for (let y = 0; y <= size * 1.5; y++) {
+                    for (let z = -size; z <= size; z++) {
+                        if (x * x + y * y * 0.5 + z * z <= size * size + Math.random() * 2) {
+                            addVoxel(bx + x, baseY + y, bz + z, Math.random() > 0.5 ? PALETTE.ROCK : PALETTE.ROCK_DARK);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Place corals
+        buildBranchCoral(-6, -4, PALETTE.CORAL_RED, 10);
+        buildBranchCoral(8, 6, PALETTE.CORAL_ORANGE, 12);
+        buildBranchCoral(-12, 8, PALETTE.CORAL_PINK, 8);
+        buildBranchCoral(15, -8, PALETTE.CORAL_RED, 9);
+        buildBranchCoral(-3, 14, PALETTE.CORAL_PURPLE, 11);
+
+        buildDomeCoral(4, -6, PALETTE.CORAL_YELLOW, 3);
+        buildDomeCoral(-10, -10, PALETTE.CORAL_PINK, 4);
+        buildDomeCoral(12, 0, PALETTE.CORAL_ORANGE, 3);
+        buildDomeCoral(-5, 10, PALETTE.CORAL_PURPLE, 3);
+
+        // Place seaweed
+        for (let i = 0; i < 35; i++) {
+            buildSeaweed(
+                Math.floor((Math.random() - 0.5) * 40),
+                Math.floor((Math.random() - 0.5) * 40)
+            );
+        }
+
+        // Place anemones
+        buildAnemone(0, 2);
+        buildAnemone(7, -3);
+        buildAnemone(-8, 5);
+        buildAnemone(3, 10);
+        buildAnemone(-14, -6);
+
+        // Place rocks
+        buildRock(-16, -2, 3);
+        buildRock(10, 12, 2);
+        buildRock(18, -12, 4);
+
+        // Treasure chest
+        for (let x = -1; x <= 1; x++) {
+            for (let z = 0; z <= 1; z++) {
+                addVoxel(x, 1, z + 16, PALETTE.TREASURE);
+                addVoxel(x, 2, z + 16, PALETTE.TREASURE);
+            }
+        }
+        addVoxel(0, 3, 16, PALETTE.TREASURE);
+
+        // Build main mesh
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.1 });
+        const mesh = new THREE.InstancedMesh(geometry, material, voxels.length);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        const dummy = new THREE.Object3D();
+        const color = new THREE.Color();
+        voxels.forEach((v, i) => {
+            dummy.position.set(v.x, v.y, v.z);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(i, dummy.matrix);
+            mesh.setColorAt(i, color.setHex(v.color));
+        });
+        scene.add(mesh);
+
+        // Bubble particles
+        const bubbleCount = 120;
+        const bubbleGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const bubbleMat = new THREE.MeshBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.5 });
+        const bubbleMesh = new THREE.InstancedMesh(bubbleGeo, bubbleMat, bubbleCount);
+        scene.add(bubbleMesh);
+
+        const bubbles = [];
+        for (let i = 0; i < bubbleCount; i++) {
+            bubbles.push({
+                x: (Math.random() - 0.5) * 40,
+                y: Math.random() * 25,
+                z: (Math.random() - 0.5) * 40,
+                speed: 0.02 + Math.random() * 0.04,
+                wobble: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Fish
+        const fishCount = 30;
+        const fishGeo = new THREE.BoxGeometry(0.8, 0.4, 0.4);
+        const fishColors = [0xff6644, 0xffaa00, 0x44aaff, 0xffff44, 0xff44aa, 0x44ffaa];
+        const fishMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const fishMesh = new THREE.InstancedMesh(fishGeo, fishMat, fishCount);
+        scene.add(fishMesh);
+
+        const fishes = [];
+        for (let i = 0; i < fishCount; i++) {
+            fishes.push({
+                cx: (Math.random() - 0.5) * 30,
+                cy: 5 + Math.random() * 15,
+                cz: (Math.random() - 0.5) * 30,
+                radius: 3 + Math.random() * 6,
+                speed: 0.3 + Math.random() * 0.5,
+                phase: Math.random() * Math.PI * 2,
+                color: fishColors[Math.floor(Math.random() * fishColors.length)]
+            });
+        }
+
+        const fishColor = new THREE.Color();
+        fishes.forEach((f, i) => {
+            fishMesh.setColorAt(i, fishColor.setHex(f.color));
+        });
+
+        // Light rays (subtle vertical beams)
+        const rayGeo = new THREE.BoxGeometry(0.15, 30, 0.15);
+        const rayMat = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.08 });
+        for (let i = 0; i < 8; i++) {
+            const ray = new THREE.Mesh(rayGeo, rayMat);
+            ray.position.set((Math.random() - 0.5) * 30, 15, (Math.random() - 0.5) * 30);
+            ray.scale.x = 1 + Math.random() * 3;
+            ray.scale.z = 1 + Math.random() * 3;
+            scene.add(ray);
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            controls.update();
+
+            // Gentle sway
+            mesh.rotation.y = Math.sin(time * 0.1) * 0.01;
+
+            // Caustic shimmer
+            causticLight.intensity = 0.8 + Math.sin(time * 3) * 0.3;
+            causticLight.position.x = Math.sin(time * 0.5) * 10;
+
+            // Bubbles
+            bubbles.forEach((b, i) => {
+                b.y += b.speed;
+                b.x += Math.sin(time + b.wobble) * 0.01;
+                b.z += Math.cos(time + b.wobble) * 0.01;
+                if (b.y > 30) {
+                    b.y = 0;
+                    b.x = (Math.random() - 0.5) * 40;
+                    b.z = (Math.random() - 0.5) * 40;
+                }
+                dummy.position.set(b.x, b.y, b.z);
+                dummy.scale.setScalar(0.5 + Math.sin(time + b.wobble) * 0.2);
+                dummy.rotation.set(0, 0, 0);
+                dummy.updateMatrix();
+                bubbleMesh.setMatrixAt(i, dummy.matrix);
+            });
+            bubbleMesh.instanceMatrix.needsUpdate = true;
+
+            // Fish swimming in circles
+            fishes.forEach((f, i) => {
+                const angle = time * f.speed + f.phase;
+                const fx = f.cx + Math.cos(angle) * f.radius;
+                const fz = f.cz + Math.sin(angle) * f.radius;
+                const fy = f.cy + Math.sin(time * 0.5 + f.phase) * 1;
+                dummy.position.set(fx, fy, fz);
+                dummy.rotation.set(0, -angle + Math.PI / 2, 0);
+                dummy.scale.set(1, 1, 1);
+                dummy.updateMatrix();
+                fishMesh.setMatrixAt(i, dummy.matrix);
+            });
+            fishMesh.instanceMatrix.needsUpdate = true;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

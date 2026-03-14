@@ -7,9 +7,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateImage, generateVoxelScene, IMAGE_SYSTEM_PROMPT, VOXEL_PROMPT } from './services/gemini';
 import { extractHtmlFromText, hideBodyText, zoomCamera } from './utils/html';
-import example1Html from './examples/example1.html?raw';
-import example2Html from './examples/example2.html?raw';
-import example3Html from './examples/example3.html?raw';
+import example4Html from './examples/example4.html?raw';
+import example5Html from './examples/example5.html?raw';
+import example6Html from './examples/example6.html?raw';
 
 type AppStatus = 'idle' | 'generating_image' | 'generating_voxels' | 'error';
 
@@ -40,9 +40,9 @@ interface Example {
 }
 
 const EXAMPLES: Example[] = [
-  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example1.png', html: example1Html },
-  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example2.png', html: example2Html },
-  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example3.png', html: example3Html },
+  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example1.png', html: example4Html },
+  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example2.png', html: example5Html },
+  { img: 'https://www.gstatic.com/aistudio/starter-apps/image_to_voxel/example3.png', html: example6Html },
 ];
 
 const App: React.FC = () => {
